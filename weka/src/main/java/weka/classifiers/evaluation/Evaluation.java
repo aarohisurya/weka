@@ -1096,7 +1096,9 @@ public class Evaluation implements Summarizable, RevisionHandler, Serializable {
     String splitPercentageString = "";
     double splitPercentage = -1;
     boolean preserveOrder = false;
-    boolean forceBatchTraining = false; // set to true if updateable classifier should not be trained using updateClassifier()
+    boolean forceBatchTraining = false; // set to true if updateable classifier
+                                        // should not be trained using
+                                        // updateClassifier()
     boolean trainSetPresent = false;
     boolean testSetPresent = false;
     boolean discardPredictions = false;
@@ -1635,12 +1637,18 @@ public class Evaluation implements Summarizable, RevisionHandler, Serializable {
     if (testSource != null) {
       // Testing is on the supplied test data
       testSource.reset();
-      test = testSource.getStructure(test.classIndex());
-      Instance testInst;
-      while (testSource.hasMoreElements(test)) {
-        testInst = testSource.nextElement(test);
-        testingEvaluation.evaluateModelOnceAndRecordPrediction(classifier,
-            testInst);
+
+      if (classifier instanceof BatchPredictor) {
+        testingEvaluation.evaluateModel(classifier,
+            testSource.getDataSet(test.classIndex()));
+      } else {
+        test = testSource.getStructure(test.classIndex());
+        Instance testInst;
+        while (testSource.hasMoreElements(test)) {
+          testInst = testSource.nextElement(test);
+          testingEvaluation.evaluateModelOnceAndRecordPrediction(classifier,
+              testInst);
+        }
       }
 
       if (splitPercentage > 0) {
@@ -1799,8 +1807,13 @@ public class Evaluation implements Summarizable, RevisionHandler, Serializable {
     }
 
     if (classifier instanceof BatchPredictor) {
+      // make a copy and set the class to missing
+      Instances dataPred = new Instances(data);
+      for (int i = 0; i < data.numInstances(); i++) {
+        dataPred.instance(i).setClassMissing();
+      }
       double[][] preds = ((BatchPredictor) classifier)
-          .distributionsForInstances(data);
+          .distributionsForInstances(dataPred);
       for (int i = 0; i < data.numInstances(); i++) {
         double[] p = preds[i];
 
@@ -3927,7 +3940,8 @@ public class Evaluation implements Summarizable, RevisionHandler, Serializable {
     optionsText.append("-no-cv\n");
     optionsText.append("\tDo not perform any cross validation.\n");
     optionsText.append("-force-batch-training\n");
-    optionsText.append("\tAlways train classifier in batch mode, never incrementally.\n");
+    optionsText
+        .append("\tAlways train classifier in batch mode, never incrementally.\n");
     optionsText.append("-split-percentage <percentage>\n");
     optionsText
         .append("\tSets the percentage for the train/test set split, e.g., 66.\n");
