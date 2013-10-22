@@ -106,12 +106,6 @@ public class LMTNode
 
     /**Filter to convert nominal attributes to binary*/
     protected NominalToBinary m_nominalToBinary;  
-   
-    /**Simple regression functions fit by LogitBoost at higher levels in the tree*/
-    protected SimpleLinearRegression[][] m_higherRegressions;
-    
-    /**Number of simple regression functions fit by LogitBoost at higher levels in the tree*/
-    protected int m_numHigherRegressions = 0;
     
     /**Number of folds for CART pruning*/
     protected static int m_numFoldsPruning = 5;
@@ -237,7 +231,7 @@ public class LMTNode
 	unprune();
 
 	//CART-prune it with best alpha
-	prune(bestAlpha);    	 		
+        prune(bestAlpha);    	 		
     }
 
     /**
@@ -270,15 +264,14 @@ public class LMTNode
 	m_numericDataHeader = numericDataHeader;
 	m_numericData = getNumericData(m_train);		  
 	
-	m_regressions = initRegressions();
-	m_numRegressions = 0;
-	
-	if (higherRegressions != null) m_higherRegressions = higherRegressions;
-	else m_higherRegressions = new SimpleLinearRegression[m_numClasses][0];	
-
-	m_numHigherRegressions = m_higherRegressions[0].length;	
+	if (higherRegressions == null) {
+            m_regressions = initRegressions();
+        } else {
+            m_regressions = higherRegressions;
+        }
         
         m_numParameters = higherNumParameters;
+	m_numRegressions = 0;
         
         //build logistic model
         if (m_numInstances >= m_numFoldsBoosting) {
@@ -292,9 +285,6 @@ public class LMTNode
         }
         
         m_numParameters += m_numRegressions;
-	
-	//only keep the simple regression functions that correspond to the selected number of LogitBoost iterations
-	m_regressions = selectRegressions(m_regressions);
 
         //store performance of model at this node
         Evaluation eval = new Evaluation(m_train);
@@ -320,7 +310,7 @@ public class LMTNode
 	} else {
 	    grow = false;
 	}
-	
+
 	if (grow) {	
 	    //create and build children of node
 	    m_isLeaf = false;	    	    
@@ -335,11 +325,8 @@ public class LMTNode
 					 m_fastRegression,  
 					 m_errorOnProbabilities,m_minNumInstances,
                                         getWeightTrimBeta(), getUseAIC(), m_nominalToBinary);
-		//the "higherRegressions" (partial logistic model fit at higher levels in the tree) passed
-		//on to the children are the "higherRegressions" at this node plus the regressions added
-		//at this node (m_regressions).
 		m_sons[i].buildTree(localInstances[i],
-                                    mergeArrays(m_regressions, m_higherRegressions), m_totalInstanceWeight, m_numParameters,
+                                    copyRegressions(m_regressions), m_totalInstanceWeight, m_numParameters,
                                     m_numericDataHeader);		
 		localInstances[i] = null;
 	    }	    
@@ -387,6 +374,14 @@ public class LMTNode
 	    nodeList = getNodes();
 	    prune = (nodeList.size() > 0);   	  
 	}  
+
+        // discard references to models at internal nodes because they are not needed
+        for (Object node : getNodes()) {
+            LMTNode lnode = (LMTNode) node;
+            if (!lnode.m_isLeaf) {
+                m_regressions = null;
+            }
+        }
     }
 
     /**
@@ -571,30 +566,6 @@ public class LMTNode
 	    m_alpha = Double.MAX_VALUE;
 	}
     }
-    
-    /**
-     * Merges two arrays of regression functions into one
-     * @param a1 one array
-     * @param a2 the other array
-     *
-     * @return an array that contains all entries from both input arrays
-     */
-    protected SimpleLinearRegression[][] mergeArrays(SimpleLinearRegression[][] a1,	
-							   SimpleLinearRegression[][] a2){
-	int numModels1 = a1[0].length;
-	int numModels2 = a2[0].length;		
-	
-	SimpleLinearRegression[][] result =
-	    new SimpleLinearRegression[m_numClasses][numModels1 + numModels2];
-	
-	for (int i = 0; i < m_numClasses; i++)
-	    for (int j = 0; j < numModels1; j++) {
-		result[i][j]  = a1[i][j];
-	    }
-	for (int i = 0; i < m_numClasses; i++)
-	    for (int j = 0; j < numModels2; j++) result[i][j+numModels1] = a2[i][j];
-	return result;
-    }
 
     /**
      * Return a list of all inner nodes in the tree
@@ -628,39 +599,6 @@ public class LMTNode
 	Instances filteredData = Filter.useFilter(train, m_nominalToBinary);	
 
 	return super.getNumericData(filteredData);
-    }
-
-    /**
-     * Computes the F-values of LogitBoost for an instance from the current logistic model at the node
-     * Note that this also takes into account the (partial) logistic model fit at higher levels in 
-     * the tree.
-     * @param instance the instance
-     * @return the array of F-values 
-     */
-    protected double[] getFs(Instance instance) throws Exception{
-	
-	double [] pred = new double [m_numClasses];
-	
-	//Need to take into account partial model fit at higher levels in the tree (m_higherRegressions) 
-	//and the part of the model fit at this node (m_regressions).
-
-	//Fs from m_regressions (use method of LogisticBase)
-	double [] instanceFs = super.getFs(instance);		
-
-	//Fs from m_higherRegressions
-	for (int i = 0; i < m_numHigherRegressions; i++) {
-	    double predSum = 0;
-	    for (int j = 0; j < m_numClasses; j++) {
-		pred[j] = m_higherRegressions[j][i].classifyInstance(instance);
-		predSum += pred[j];
-	    }
-	    predSum /= m_numClasses;
-	    for (int j = 0; j < m_numClasses; j++) {
-		instanceFs[j] += (pred[j] - predSum) * (m_numClasses - 1) 
-		    / m_numClasses;
-	    }
-	}
-	return instanceFs; 
     }
     
     /**
@@ -769,7 +707,7 @@ public class LMTNode
     public String getModelParameters(){
 	
 	StringBuffer text = new StringBuffer();
-	int numModels = m_numRegressions+m_numHigherRegressions;
+	int numModels = (int)m_numParameters;
 	text.append(m_numRegressions+"/"+numModels+" ("+m_numInstances+")");
 	return text.toString();
     }
@@ -827,32 +765,6 @@ public class LMTNode
 	    m_leafModelNum = leafCounter;
 	} 
 	return leafCounter;
-    }
-
-    /**
-     * Returns an array containing the coefficients of the logistic regression function at this node.
-     * @return the array of coefficients, first dimension is the class, second the attribute. 
-     */
-    protected double[][] getCoefficients(){
-       
-	//Need to take into account partial model fit at higher levels in the tree (m_higherRegressions) 
-	//and the part of the model fit at this node (m_regressions).
-	
-	//get coefficients from m_regressions: use method of LogisticBase
-	double[][] coefficients = super.getCoefficients();
-	//get coefficients from m_higherRegressions:
-        double constFactor = (double)(m_numClasses - 1) / (double)m_numClasses; // (J - 1)/J
-	for (int j = 0; j < m_numClasses; j++) {
-	    for (int i = 0; i < m_numHigherRegressions; i++) {		
-		double slope = m_higherRegressions[j][i].getSlope();
-		double intercept = m_higherRegressions[j][i].getIntercept();
-		int attribute = m_higherRegressions[j][i].getAttributeIndex();
-		coefficients[j][0] += constFactor * intercept;
-		coefficients[j][attribute + 1] += constFactor * slope;
-	    }
-	}
-
-	return coefficients;
     }
     
     /**
