@@ -50,7 +50,7 @@ public class ClassifierErrorsWeka implements ErrorVisualizePlugin {
    * Post processes numeric class errors into shape sizes for plotting in the
    * visualize panel.
    * 
-   * @param plotSize a FastVector of numeric class errors
+   * @param plotSize an ArrayList of numeric class errors
    */
   protected void postProcessPlotInfo(ArrayList<Object> plotSize) {
     int maxpSize = 20;
@@ -210,7 +210,7 @@ public class ClassifierErrorsWeka implements ErrorVisualizePlugin {
    */
   @Override
   public String getMaxVersion() {
-    return "3.7.0";
+    return "3.8.0";
   }
 
   /**
