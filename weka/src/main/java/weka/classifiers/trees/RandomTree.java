@@ -1465,11 +1465,13 @@ public class RandomTree extends AbstractClassifier implements OptionHandler,
       num++;
       if (m_Attribute == -1) {
         text.append("N" + Integer.toHexString(Tree.this.hashCode())
-          + " [label=\"" + num + leafString() + "\"" + " shape=box]\n");
+          + " [label=\"" + num + Utils.backQuoteChars(leafString()) + "\""
+          + " shape=box]\n");
 
       } else {
         text.append("N" + Integer.toHexString(Tree.this.hashCode())
-          + " [label=\"" + num + ": " + m_Info.attribute(m_Attribute).name()
+          + " [label=\"" + num + ": "
+          + Utils.backQuoteChars(m_Info.attribute(m_Attribute).name())
           + "\"]\n");
         for (int i = 0; i < m_Successors.length; i++) {
           text.append("N" + Integer.toHexString(Tree.this.hashCode()) + "->"
@@ -1482,7 +1484,8 @@ public class RandomTree extends AbstractClassifier implements OptionHandler,
               text.append(" >= " + Utils.doubleToString(m_SplitPoint, 2));
             }
           } else {
-            text.append(" = " + m_Info.attribute(m_Attribute).value(i));
+            text.append(" = "
+              + Utils.backQuoteChars(m_Info.attribute(m_Attribute).value(i)));
           }
           text.append("\"]\n");
           num = m_Successors[i].toGraph(text, num, this);
