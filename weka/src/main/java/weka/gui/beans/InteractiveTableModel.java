@@ -30,7 +30,7 @@ import javax.swing.table.AbstractTableModel;
  * in the last cell of a row.
  * 
  * @author Mark Hall (mhall{[at]}pentaho{[dot]}com)
- * @version $Revision$
+ * @version $Revision: 47640 $
  */
 public class InteractiveTableModel extends AbstractTableModel {
 
