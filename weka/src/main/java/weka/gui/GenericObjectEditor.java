@@ -31,6 +31,7 @@ import java.awt.GridLayout;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.beans.PropertyChangeEvent;
@@ -66,6 +67,7 @@ import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTree;
+import javax.swing.ToolTipManager;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -262,6 +264,9 @@ public class GenericObjectEditor implements PropertyEditor, CustomPanelSupplier 
     /** the Capabilities object to use for filtering. */
     protected Capabilities m_Capabilities = null;
 
+    /** tool tip */
+    protected String m_toolTipText;
+
     /**
      * Creates a tree node that has no parent and no children, but which allows
      * children.
@@ -292,6 +297,24 @@ public class GenericObjectEditor implements PropertyEditor, CustomPanelSupplier 
      */
     public GOETreeNode(Object userObject, boolean allowsChildren) {
       super(userObject, allowsChildren);
+    }
+
+    /**
+     * Set the tool tip for this node
+     * 
+     * @param tip the tool tip for this node
+     */
+    public void setToolTipText(String tip) {
+      m_toolTipText = tip;
+    }
+
+    /**
+     * Get the tool tip for this node
+     * 
+     * @return the tool tip for this node
+     */
+    public String getToolTipText() {
+      return m_toolTipText;
     }
 
     /**
@@ -1023,6 +1046,7 @@ public class GenericObjectEditor implements PropertyEditor, CustomPanelSupplier 
   public GenericObjectEditor(boolean canChangeClassInDialog) {
     m_canChangeClassInDialog = canChangeClassInDialog;
     m_History = new GenericObjectEditorHistory();
+    ToolTipManager.sharedInstance().setDismissDelay(7000);
   }
 
   /**
@@ -1702,7 +1726,30 @@ public class GenericObjectEditor implements PropertyEditor, CustomPanelSupplier 
       }
     }
 
-    JTree tree = new JTree(superRoot);
+    JTree tree = new JTree(superRoot) {
+
+      /** For serialization */
+      private static final long serialVersionUID = 6991903188102450549L;
+
+      @Override
+      public String getToolTipText(MouseEvent e) {
+        if ((getRowForLocation(e.getX(), e.getY())) == -1) {
+          return null;
+        }
+        TreePath currPath = getPathForLocation(e.getX(), e.getY());
+        if (currPath.getLastPathComponent() instanceof DefaultMutableTreeNode) {
+          DefaultMutableTreeNode node = (DefaultMutableTreeNode) currPath
+            .getLastPathComponent();
+
+          if (node.isLeaf()) {
+
+            return ((GOETreeNode) node).getToolTipText();
+          }
+        }
+        return null;
+      }
+    };
+    tree.setToolTipText("");
 
     return tree;
   }
@@ -1726,6 +1773,19 @@ public class GenericObjectEditor implements PropertyEditor, CustomPanelSupplier 
           m_treeNodeOfCurrentObject = child;
         }
         tree.add(child);
+
+        if (hpp.isLeafReached()) {
+          String algName = hpp.fullValue();
+          try {
+            Object alg = Class.forName(algName).newInstance();
+            String toolTip = Utils.getGlobalInfo(alg, true);
+            if (toolTip != null) {
+              child.setToolTipText(toolTip);
+            }
+          } catch (Exception ex) {
+          }
+        }
+
         addChildrenToTree(child, hpp);
         hpp.goToParent();
       }

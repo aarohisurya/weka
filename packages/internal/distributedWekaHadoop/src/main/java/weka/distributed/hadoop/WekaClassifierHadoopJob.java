@@ -46,7 +46,9 @@ import weka.core.Instances;
 import weka.core.Option;
 import weka.core.Utils;
 import weka.distributed.CSVToARFFHeaderMapTask;
+import weka.distributed.CSVToARFFHeaderMapTask.ArffSummaryNumericMetric;
 import weka.distributed.CSVToARFFHeaderMapTask.NominalStats;
+import weka.distributed.CSVToARFFHeaderMapTask.NumericStats;
 import weka.distributed.CSVToARFFHeaderReduceTask;
 import weka.distributed.DistributedWekaException;
 import weka.distributed.WekaClassifierMapTask;
@@ -767,10 +769,17 @@ public class WekaClassifierHadoopJob extends HadoopJob implements
           + className);
     }
 
-    NominalStats stats = NominalStats.attributeToStats(summaryClassAtt);
     int totalNumInstances = 0;
-    for (String label : stats.getLabels()) {
-      totalNumInstances += stats.getCount(label);
+
+    if (headerNoSummary.classAttribute().isNominal()) {
+      NominalStats stats = NominalStats.attributeToStats(summaryClassAtt);
+      for (String label : stats.getLabels()) {
+        totalNumInstances += stats.getCount(label);
+      }
+    } else {
+      NumericStats stats = NumericStats.attributeToStats(summaryClassAtt);
+      totalNumInstances = (int) stats.getStats()[ArffSummaryNumericMetric.COUNT
+        .ordinal()];
     }
 
     m_randomizeConfig
@@ -800,6 +809,21 @@ public class WekaClassifierHadoopJob extends HadoopJob implements
     if (!DistributedJobConfig.isEmpty(getClassAttribute())) {
       randomizeMapOptions.add("-class");
       randomizeMapOptions.add(environmentSubstitute(getClassAttribute()));
+    }
+
+    // make sure the random seed gets in there from the setting in
+    // the underlying classifier map task.
+    try {
+      String[] classifierOpts = Utils
+        .splitOptions(getClassifierMapTaskOptions());
+      String seedS = Utils.getOption("seed", classifierOpts);
+      if (!DistributedJobConfig.isEmpty(seedS)) {
+        seedS = environmentSubstitute(seedS);
+        randomizeMapOptions.add("-seed");
+        randomizeMapOptions.add(seedS);
+      }
+    } catch (Exception e1) {
+      e1.printStackTrace();
     }
 
     m_randomizeConfig.setUserSuppliedProperty(
