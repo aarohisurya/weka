@@ -51,8 +51,8 @@ public class Run {
   public enum SchemeType {
     CLASSIFIER("classifier"), CLUSTERER("clusterer"), ASSOCIATOR(
       "association rules"), ATTRIBUTE_SELECTION("attribute selection"), FILTER(
-      "filter"), LOADER("loader"), SAVER("saver"), COMMANDLINE(
-      "general commandline runnable");
+      "filter"), LOADER("loader"), SAVER("saver"), DATAGENERATOR(
+      "data generator"), COMMANDLINE("general commandline runnable");
 
     private final String m_stringVal;
 
@@ -96,6 +96,7 @@ public class Run {
               || scheme instanceof weka.filters.Filter
               || scheme instanceof weka.core.converters.AbstractFileLoader
               || scheme instanceof weka.core.converters.AbstractFileSaver
+              || scheme instanceof weka.datagenerators.DataGenerator
               || scheme instanceof weka.core.CommandlineRunnable) {
               prunedMatches.add(matches.get(i));
             }
@@ -232,29 +233,33 @@ public class Run {
       }
       // now see which interfaces/classes this scheme implements/extends
       ArrayList<SchemeType> types = new ArrayList<SchemeType>();
-      if (scheme instanceof weka.classifiers.Classifier) {
-        types.add(SchemeType.CLASSIFIER);
-      }
-      if (scheme instanceof weka.clusterers.Clusterer) {
-        types.add(SchemeType.CLUSTERER);
-      }
-      if (scheme instanceof weka.associations.Associator) {
-        types.add(SchemeType.ASSOCIATOR);
-      }
-      if (scheme instanceof weka.attributeSelection.ASEvaluation) {
-        types.add(SchemeType.ATTRIBUTE_SELECTION);
-      }
-      if (scheme instanceof weka.filters.Filter) {
-        types.add(SchemeType.FILTER);
-      }
-      if (scheme instanceof weka.core.converters.AbstractFileLoader) {
-        types.add(SchemeType.LOADER);
-      }
-      if (scheme instanceof weka.core.converters.AbstractFileSaver) {
-        types.add(SchemeType.SAVER);
-      }
       if (scheme instanceof weka.core.CommandlineRunnable) {
         types.add(SchemeType.COMMANDLINE);
+      } else {
+        if (scheme instanceof weka.classifiers.Classifier) {
+          types.add(SchemeType.CLASSIFIER);
+        }
+        if (scheme instanceof weka.clusterers.Clusterer) {
+          types.add(SchemeType.CLUSTERER);
+        }
+        if (scheme instanceof weka.associations.Associator) {
+          types.add(SchemeType.ASSOCIATOR);
+        }
+        if (scheme instanceof weka.attributeSelection.ASEvaluation) {
+          types.add(SchemeType.ATTRIBUTE_SELECTION);
+        }
+        if (scheme instanceof weka.filters.Filter) {
+          types.add(SchemeType.FILTER);
+        }
+        if (scheme instanceof weka.core.converters.AbstractFileLoader) {
+          types.add(SchemeType.LOADER);
+        }
+        if (scheme instanceof weka.core.converters.AbstractFileSaver) {
+          types.add(SchemeType.SAVER);
+        }
+        if (scheme instanceof weka.datagenerators.DataGenerator) {
+          types.add(SchemeType.DATAGENERATOR);
+        }
       }
 
       SchemeType selectedType = null;
@@ -317,6 +322,9 @@ public class Run {
       } else if (selectedType == SchemeType.SAVER) {
         weka.core.converters.AbstractFileSaver.runFileSaver(
           (weka.core.converters.AbstractFileSaver) scheme, options);
+      } else if (selectedType == SchemeType.DATAGENERATOR) {
+        weka.datagenerators.DataGenerator.runDataGenerator(
+          (weka.datagenerators.DataGenerator) scheme, options);
       } else if (selectedType == SchemeType.COMMANDLINE) {
         ((weka.core.CommandlineRunnable) scheme).run(scheme, options);
       }
