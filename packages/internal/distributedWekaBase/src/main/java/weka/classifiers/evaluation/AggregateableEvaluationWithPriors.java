@@ -140,7 +140,8 @@ public class AggregateableEvaluationWithPriors extends AggregateableEvaluation {
       r.nextInt();
     }
 
-    FastVector<Prediction> downSampled = new FastVector<Prediction>(numToRetain);
+    FastVector<Prediction> downSampled =
+      new FastVector<Prediction>(numToRetain);
     FastVector<Prediction> tmpV = new FastVector<Prediction>();
     tmpV.addAll(m_Predictions);
     for (int i = m_Predictions.size() - 1; i >= 0; i--) {
@@ -159,5 +160,12 @@ public class AggregateableEvaluationWithPriors extends AggregateableEvaluation {
     }
 
     m_Predictions = downSampled;
+  }
+
+  /**
+   * Delete any buffered predictions
+   */
+  public void deleteStoredPredictions() {
+    m_Predictions = null;
   }
 }

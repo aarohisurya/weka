@@ -516,10 +516,6 @@
     </antcall>
 
     <antcall target="${packageCommand}_external">
-      <param name="packageName" value="scatterPlot3D"/>
-    </antcall>
-
-    <antcall target="${packageCommand}_external">
       <param name="packageName" value="kfGroovy"/>
     </antcall>
 
@@ -1066,9 +1062,8 @@
   </target>
 
   <target name="superclean" depends="clean"
-   description="Clean plus removes source trees! and doc directories">
+   description="Clean plus removes source trees!">
   <!-- WARNING, this deletes the source and doc directories -->
     <delete dir="${src}"/>
-    <delete dir="${doc}"/>
   </target>
 </project>
